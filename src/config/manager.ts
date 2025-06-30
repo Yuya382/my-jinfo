@@ -2,11 +2,84 @@ import { existsSync, mkdirSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
-import type { Config, ProjectConfig } from './types.js';
+import type { Config, ProjectConfig, MemoType } from './types.js';
 import { logger } from '../utils/logger.js';
 
 const CONFIG_DIR = join(homedir(), '.jinfo');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
+
+const DEFAULT_MEMO_TYPES: MemoType[] = [
+  {
+    key: 'note',
+    label: 'メモ',
+    description: '一般的なメモや記録',
+    emoji: '📝',
+    color: 'gray'
+  },
+  {
+    key: 'task',
+    label: 'タスク',
+    description: 'やるべきことや作業項目',
+    emoji: '✅',
+    color: 'blue'
+  },
+  {
+    key: 'idea',
+    label: 'アイデア',
+    description: '新しい発想やひらめき',
+    emoji: '💡',
+    color: 'yellow'
+  },
+  {
+    key: 'meeting',
+    label: '会議',
+    description: '会議の議事録や内容',
+    emoji: '🤝',
+    color: 'purple'
+  },
+  {
+    key: 'learning',
+    label: '学習',
+    description: '学んだことや気づき',
+    emoji: '📚',
+    color: 'green'
+  },
+  {
+    key: 'issue',
+    label: '課題',
+    description: '問題や解決すべき事項',
+    emoji: '⚠️',
+    color: 'red'
+  },
+  {
+    key: 'progress',
+    label: '進捗',
+    description: '作業の進捗や状況報告',
+    emoji: '📈',
+    color: 'cyan'
+  },
+  {
+    key: 'reflection',
+    label: '振り返り',
+    description: '反省や総括',
+    emoji: '🤔',
+    color: 'magenta'
+  },
+  {
+    key: 'decision',
+    label: '決定',
+    description: '決定事項や方針',
+    emoji: '⚡',
+    color: 'orange'
+  },
+  {
+    key: 'reference',
+    label: '参考',
+    description: '参考情報やリンク',
+    emoji: '🔗',
+    color: 'teal'
+  }
+];
 
 const DEFAULT_CONFIG: Config = {
   version: '1.0.0',
@@ -27,7 +100,8 @@ const DEFAULT_CONFIG: Config = {
       info: 'blue',
       warning: 'yellow'
     }
-  }
+  },
+  memoTypes: DEFAULT_MEMO_TYPES
 };
 
 export class ConfigManager {
@@ -131,5 +205,15 @@ export class ConfigManager {
   async listProjects(): Promise<Record<string, ProjectConfig>> {
     const config = await this.loadConfig();
     return config.projects;
+  }
+
+  async getMemoTypes(): Promise<MemoType[]> {
+    const config = await this.loadConfig();
+    return config.memoTypes || DEFAULT_MEMO_TYPES;
+  }
+
+  async getMemoType(key: string): Promise<MemoType | undefined> {
+    const memoTypes = await this.getMemoTypes();
+    return memoTypes.find(type => type.key === key);
   }
 }

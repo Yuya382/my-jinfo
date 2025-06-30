@@ -17,9 +17,18 @@ export interface Preferences {
   colorScheme: ColorScheme;
 }
 
+export interface MemoType {
+  key: string;
+  label: string;
+  description: string;
+  emoji: string;
+  color: string;
+}
+
 export interface Config {
   version: string;
   defaultProject: string;
   projects: Record<string, ProjectConfig>;
   preferences: Preferences;
+  memoTypes: MemoType[];
 }

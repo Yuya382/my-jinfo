@@ -6,9 +6,70 @@ import { ConfigManager } from './config/manager.js';
 import { MemoWriter } from './storage/writer.js';
 import { MemoReader } from './storage/reader.js';
 import { logger } from './utils/logger.js';
+import { formatSemanticMemo } from './utils/formatter.js';
 
 const program = new Command();
 const configManager = new ConfigManager();
+
+// 対話式メモ追加関数
+async function runInteractiveMode(initialMemo?: string): Promise<void> {
+  // メモタイプ選択
+  const memoTypes = await configManager.getMemoTypes();
+  
+  const typeChoices = memoTypes.map(type => ({
+    name: `${type.emoji} ${type.label} - ${type.description}`,
+    value: type.key,
+    description: `タイプ: ${type.label}`
+  }));
+  
+  const selectedType = await select({
+    message: 'メモのタイプを選択してください:',
+    choices: typeChoices,
+    default: 'note'
+  });
+  
+  // プロジェクト選択
+  const projects = await configManager.listProjects();
+  const config = await configManager.loadConfig();
+  
+  const projectChoices = Object.entries(projects).map(([name, project]) => ({
+    name: `${name} - ${project.description}`,
+    value: name,
+    description: project.path
+  }));
+  
+  const selectedProject = await select({
+    message: 'プロジェクトを選択してください:',
+    choices: projectChoices,
+    default: config.defaultProject
+  });
+  
+  // メモ内容入力
+  let memoContent = initialMemo;
+  if (!memoContent) {
+    memoContent = await input({
+      message: 'メモ内容を入力してください:',
+      required: true,
+      validate: (value) => {
+        if (value.trim().length === 0) {
+          return 'メモ内容は必須です';
+        }
+        return true;
+      }
+    });
+  }
+  
+  // メモタイプを取得してフォーマット
+  const memoType = await configManager.getMemoType(selectedType);
+  const formattedContent = formatSemanticMemo(memoContent, memoType);
+  
+  // メモ保存
+  const project = await configManager.getProject(selectedProject);
+  const writer = new MemoWriter(project.path);
+  await writer.addMemo(formattedContent);
+  
+  logger.success(`${memoType?.emoji || '📝'} メモを追加しました (タイプ: ${memoType?.label || 'メモ'}, プロジェクト: ${selectedProject})`);
+}
 
 program
   .name('jinfo')
@@ -18,20 +79,38 @@ program
 program
   .argument('[memo]', 'メモ内容')
   .option('-p, --project <name>', 'プロジェクト名を指定')
+  .option('-s, --simple', 'シンプルモード（メモ内容のみ入力）')
   .action(async (memo, options) => {
     try {
-      const project = await configManager.getProject(options.project);
-      const writer = new MemoWriter(project.path);
-      
-      let memoContent = memo;
-      if (!memoContent) {
-        memoContent = await input({
-          message: 'Please add memo:',
-          required: true
-        });
+      // シンプルモードの場合（従来の動作）
+      if (options.simple) {
+        const project = await configManager.getProject(options.project);
+        const writer = new MemoWriter(project.path);
+        
+        let memoContent = memo;
+        if (!memoContent) {
+          memoContent = await input({
+            message: 'Please add memo:',
+            required: true
+          });
+        }
+        
+        await writer.addMemo(memoContent);
+        logger.success('メモを追加しました');
+        return;
       }
       
-      await writer.addMemo(memoContent);
+      // メモ内容が指定されている場合はプロジェクト指定でシンプル保存
+      if (memo) {
+        const project = await configManager.getProject(options.project);
+        const writer = new MemoWriter(project.path);
+        await writer.addMemo(memo);
+        logger.success('メモを追加しました');
+        return;
+      }
+      
+      // デフォルト: インタラクティブモード
+      await runInteractiveMode();
     } catch (error) {
       logger.error(`エラーが発生しました: ${error}`);
       process.exit(1);
@@ -155,53 +234,21 @@ projectCommand
     }
   });
 
-// 対話式メモ追加コマンド
+// 後方互換性のための interactive コマンド（deprecated）
 program
   .command('interactive')
   .alias('i')
-  .description('対話式でメモを追加')
+  .description('対話式でメモを追加 (deprecated: jinfoのデフォルト動作になりました)')
   .action(async () => {
     try {
-      // プロジェクト選択
-      const projects = await configManager.listProjects();
-      const config = await configManager.loadConfig();
-      
-      const projectChoices = Object.entries(projects).map(([name, project]) => ({
-        name: `${name} - ${project.description}`,
-        value: name,
-        description: project.path
-      }));
-      
-      const selectedProject = await select({
-        message: 'プロジェクトを選択してください:',
-        choices: projectChoices,
-        default: config.defaultProject
-      });
-      
-      // メモ内容入力
-      const memoContent = await input({
-        message: 'メモ内容を入力してください:',
-        required: true,
-        validate: (value) => {
-          if (value.trim().length === 0) {
-            return 'メモ内容は必須です';
-          }
-          return true;
-        }
-      });
-      
-      // メモ保存
-      const project = await configManager.getProject(selectedProject);
-      const writer = new MemoWriter(project.path);
-      await writer.addMemo(memoContent);
-      
-      logger.success(`メモを追加しました (プロジェクト: ${selectedProject})`);
-      
+      logger.warning('`jinfo interactive` は非推奨です。代わりに `jinfo` を引数なしで実行してください。');
+      await runInteractiveMode();
     } catch (error) {
       logger.error(`エラーが発生しました: ${error}`);
       process.exit(1);
     }
   });
+
 
 async function main() {
   try {
