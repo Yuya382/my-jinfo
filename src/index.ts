@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { input } from '@inquirer/prompts';
+import { input, select } from '@inquirer/prompts';
 import { ConfigManager } from './config/manager.js';
 import { MemoWriter } from './storage/writer.js';
 import { MemoReader } from './storage/reader.js';
@@ -149,6 +149,54 @@ projectCommand
   .action(async (name) => {
     try {
       await configManager.setDefaultProject(name);
+    } catch (error) {
+      logger.error(`エラーが発生しました: ${error}`);
+      process.exit(1);
+    }
+  });
+
+// 対話式メモ追加コマンド
+program
+  .command('interactive')
+  .alias('i')
+  .description('対話式でメモを追加')
+  .action(async () => {
+    try {
+      // プロジェクト選択
+      const projects = await configManager.listProjects();
+      const config = await configManager.loadConfig();
+      
+      const projectChoices = Object.entries(projects).map(([name, project]) => ({
+        name: `${name} - ${project.description}`,
+        value: name,
+        description: project.path
+      }));
+      
+      const selectedProject = await select({
+        message: 'プロジェクトを選択してください:',
+        choices: projectChoices,
+        default: config.defaultProject
+      });
+      
+      // メモ内容入力
+      const memoContent = await input({
+        message: 'メモ内容を入力してください:',
+        required: true,
+        validate: (value) => {
+          if (value.trim().length === 0) {
+            return 'メモ内容は必須です';
+          }
+          return true;
+        }
+      });
+      
+      // メモ保存
+      const project = await configManager.getProject(selectedProject);
+      const writer = new MemoWriter(project.path);
+      await writer.addMemo(memoContent);
+      
+      logger.success(`メモを追加しました (プロジェクト: ${selectedProject})`);
+      
     } catch (error) {
       logger.error(`エラーが発生しました: ${error}`);
       process.exit(1);

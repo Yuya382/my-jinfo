@@ -23,7 +23,7 @@
     "note",
     "typescript"
   ],
-  "author": "",
+  "author": "Yuya382",
   "license": "ISC",
   "packageManager": "pnpm@10.6.5",
   "dependencies": {
