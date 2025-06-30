@@ -308,21 +308,28 @@ cd jinfo
 pnpm install
 ```
 
-### テストの実行
+### 開発ワークフロー
 ```bash
-# 全テスト実行
+# 対話式コミット（推奨）
+pnpm commit
+
+# テストの実行
 pnpm test:run
 
-# ウォッチモード
-pnpm test
-
-# カバレッジ付き
-pnpm test:coverage
+# ビルド
+pnpm build
 ```
 
-### ビルド
+詳細な開発ガイドは [DEVELOPMENT.md](docs/DEVELOPMENT.md) を参照してください。
+
+### Conventional Commits
+このプロジェクトでは一貫性のあるコミットメッセージのためにConventional Commitsを採用しています：
+
 ```bash
-pnpm build
+# 例
+feat(interactive): add semantic memo type selection
+fix(storage): resolve file write permission issue
+docs: update README with new features
 ```
 
 ## サポート
