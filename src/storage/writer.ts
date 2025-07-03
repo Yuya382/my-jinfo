@@ -1,7 +1,7 @@
-import { appendFile, existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
+import { appendFile } from 'fs/promises';
 import { join } from 'path';
 import dayjs from 'dayjs';
-import { formatMemo } from '../utils/formatter.js';
 import { logger } from '../utils/logger.js';
 
 export class MemoWriter {
@@ -17,16 +17,11 @@ export class MemoWriter {
       const filename = `${targetDate}.md`;
       const filepath = join(this.basePath, filename);
       
-      const formattedMemo = formatMemo(content) + '\n';
+      const memoToWrite = content + '\n';
       
-      await new Promise<void>((resolve, reject) => {
-        appendFile(filepath, formattedMemo, 'utf-8', (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      await appendFile(filepath, memoToWrite, 'utf-8');
       
-      logger.success(`メモを追加しました: ${content}`);
+      logger.success(`メモを追加しました。`);
     } catch (error) {
       logger.error(`メモの追加に失敗しました: ${error}`);
       throw error;

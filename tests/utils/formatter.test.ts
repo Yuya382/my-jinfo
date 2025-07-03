@@ -10,16 +10,16 @@ describe('formatter utilities', () => {
 
     it('should return timestamp in correct format', () => {
       const mockDate = '2024-01-15 14:30:45';
-      vi.spyOn(dayjs.prototype, 'format').mockReturnValue('[2024-01-15 14:30:45]');
+      vi.spyOn(dayjs.prototype, 'format').mockReturnValue('[2024d01ー15 14:30:45]');
       
       const timestamp = getTimestamp();
-      expect(timestamp).toBe('[2024-01-15 14:30:45]');
+      expect(timestamp).toBe('[2024d01ー15 14:30:45]');
     });
 
     it('should use current date when no date provided', () => {
       const formatSpy = vi.spyOn(dayjs.prototype, 'format');
       getTimestamp();
-      expect(formatSpy).toHaveBeenCalledWith('[[]YYYY-MM-DD HH:mm:ss[]]');
+      expect(formatSpy).toHaveBeenCalledWith('[[]YYYY[d]MM[ー]DD HH:mm:ss[]]');
     });
   });
 
@@ -62,26 +62,26 @@ describe('formatter utilities', () => {
 
   describe('formatMemo', () => {
     it('should format memo with timestamp', () => {
-      vi.spyOn(dayjs.prototype, 'format').mockReturnValue('[2024-01-15 14:30:45]');
+      vi.spyOn(dayjs.prototype, 'format').mockReturnValue('[2024d01ー15 14:30:45]');
       
       const content = 'Test memo content';
       const formatted = formatMemo(content);
-      expect(formatted).toBe('[2024-01-15 14:30:45] Test memo content');
+      expect(formatted).toBe('[2024d01ー15 14:30:45] Test memo content');
     });
 
     it('should handle empty content', () => {
-      vi.spyOn(dayjs.prototype, 'format').mockReturnValue('[2024-01-15 14:30:45]');
+      vi.spyOn(dayjs.prototype, 'format').mockReturnValue('[2024d01ー15 14:30:45]');
       
       const formatted = formatMemo('');
-      expect(formatted).toBe('[2024-01-15 14:30:45] ');
+      expect(formatted).toBe('[2024d01ー15 14:30:45] ');
     });
 
     it('should handle content with tags', () => {
-      vi.spyOn(dayjs.prototype, 'format').mockReturnValue('[2024-01-15 14:30:45]');
+      vi.spyOn(dayjs.prototype, 'format').mockReturnValue('[2024d01ー15 14:30:45]');
       
       const content = 'Meeting notes #meeting #important';
       const formatted = formatMemo(content);
-      expect(formatted).toBe('[2024-01-15 14:30:45] Meeting notes #meeting #important');
+      expect(formatted).toBe('[2024d01ー15 14:30:45] Meeting notes #meeting #important');
     });
   });
 });

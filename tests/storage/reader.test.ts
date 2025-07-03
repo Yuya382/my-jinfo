@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFile, readdir } from 'fs/promises';
 import { existsSync } from 'fs';
+import path from 'path';
 import { MemoReader } from '../../src/storage/reader.js';
 
 vi.mock('fs/promises');
@@ -16,7 +17,7 @@ vi.mock('../../src/utils/logger.js', () => ({
 
 describe('MemoReader', () => {
   let memoReader: MemoReader;
-  const basePath = '/test/path';
+  const basePath = path.join('test', 'path');
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -24,10 +25,16 @@ describe('MemoReader', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
   describe('readMemos', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2025-06-30T10:00:00Z'));
+    });
+
     it('should read and parse memos from file', async () => {
       const mockContent = `[2024-01-15 14:30:45] Meeting notes #meeting
 [2024-01-15 15:20:10] Follow-up task #important`;
@@ -36,6 +43,9 @@ describe('MemoReader', () => {
       vi.mocked(readFile).mockResolvedValue(mockContent);
 
       const memos = await memoReader.readMemos('2024-01-15');
+      const expectedPath = path.join(basePath, '2024-01-15.md');
+      expect(existsSync).toHaveBeenCalledWith(expectedPath);
+      expect(readFile).toHaveBeenCalledWith(expectedPath, 'utf-8');
 
       expect(memos).toHaveLength(2);
       expect(memos[0]).toMatchObject({
@@ -63,11 +73,11 @@ describe('MemoReader', () => {
 
     it('should use current date when no date specified', async () => {
       vi.mocked(existsSync).mockReturnValue(true);
-      vi.mocked(readFile).mockResolvedValue('[2024-06-30 14:30:45] Today memo');
+      vi.mocked(readFile).mockResolvedValue('[2025-06-30 10:00:00] Today memo');
 
       const memos = await memoReader.readMemos();
-
-      expect(existsSync).toHaveBeenCalledWith(expect.stringContaining('2025-06-30.md'));
+      const expectedPath = path.join(basePath, '2025-06-30.md');
+      expect(existsSync).toHaveBeenCalledWith(expectedPath);
     });
 
     it('should handle malformed lines gracefully', async () => {
@@ -116,11 +126,16 @@ Invalid line without timestamp
   });
 
   describe('readRecentMemos', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2025-06-30T10:00:00Z'));
+    });
+
     it('should read memos from multiple days', async () => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFile)
-        .mockResolvedValueOnce('[2024-06-30 14:30:45] Today memo')
-        .mockResolvedValueOnce('[2024-06-29 14:30:45] Yesterday memo')
+        .mockResolvedValueOnce('[2025-06-30 10:00:00] Today memo')
+        .mockResolvedValueOnce('[2025-06-29 10:00:00] Yesterday memo')
         .mockResolvedValueOnce(''); // Empty file for other days
 
       const memos = await memoReader.readRecentMemos(3);
@@ -133,14 +148,14 @@ Invalid line without timestamp
     it('should sort memos by timestamp descending', async () => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFile)
-        .mockResolvedValueOnce('[2024-06-30 10:00:00] Later memo')
-        .mockResolvedValueOnce('[2024-06-29 15:00:00] Earlier memo but later time')
+        .mockResolvedValueOnce('[2025-06-30 10:00:00] Later memo')
+        .mockResolvedValueOnce('[2025-06-29 15:00:00] Earlier memo but later time')
         .mockResolvedValue('');
 
       const memos = await memoReader.readRecentMemos(2);
 
-      expect(memos[0].timestamp).toBe('2024-06-30 10:00:00');
-      expect(memos[1].timestamp).toBe('2024-06-29 15:00:00');
+      expect(memos[0].timestamp).toBe('2025-06-30 10:00:00');
+      expect(memos[1].timestamp).toBe('2025-06-29 15:00:00');
     });
 
     it('should default to 7 days when no parameter provided', async () => {
@@ -250,14 +265,39 @@ Invalid line without timestamp
     });
 
     it('should ignore non-md files', async () => {
-      vi.mocked(readdir).mockResolvedValue(['2024-01-15.md', 'config.json', '2024-01-16.txt'] as any);
+      vi.mocked(readdir).mockResolvedValue(['2024-01-15.md', 'ignore.txt'] as any);
       vi.mocked(existsSync).mockReturnValue(true);
-      vi.mocked(readFile).mockResolvedValueOnce('[2024-01-15 14:30:45] Valid memo');
-
+      vi.mocked(readFile).mockResolvedValue('[2024-01-15 14:30:45] Valid memo');
+      
       const memos = await memoReader.searchMemos('memo');
-
       expect(readFile).toHaveBeenCalledTimes(1);
+      expect(readFile).toHaveBeenCalledWith(path.join(basePath, '2024-01-15.md'), 'utf-8');
+    });
+
+    it('should correctly parse normal memo', async () => {
+      const mockContent = '[2024-01-15 14:30:45] Valid memo';
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFile).mockResolvedValue(mockContent);
+      
+      const memos = await memoReader.readMemos('2024-01-15');
+      expect(memos[0].timestamp).toBe('2024-01-15 14:30:45');
+    });
+
+    it('should correctly parse semantic memo', async () => {
+      const mockContent = '[2024-01-15 14:30:45] task(✅): Implement feature';
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFile).mockResolvedValue(mockContent);
+
+      const memos = await memoReader.readMemos('2024-01-15');
+      
       expect(memos).toHaveLength(1);
+      expect(memos[0]).toMatchObject({
+        timestamp: '2024-01-15 14:30:45',
+        type: 'task',
+        emoji: '✅',
+        content: 'Implement feature',
+        date: '2024-01-15'
+      });
     });
   });
 });

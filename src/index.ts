@@ -6,7 +6,7 @@ import { ConfigManager } from './config/manager.js';
 import { MemoWriter } from './storage/writer.js';
 import { MemoReader } from './storage/reader.js';
 import { logger } from './utils/logger.js';
-import { formatSemanticMemo } from './utils/formatter.js';
+import { formatSemanticMemo, formatMemo } from './utils/formatter.js';
 
 const program = new Command();
 const configManager = new ConfigManager();
@@ -95,7 +95,8 @@ program
           });
         }
         
-        await writer.addMemo(memoContent);
+        const formattedMemo = formatMemo(memoContent);
+        await writer.addMemo(formattedMemo);
         logger.success('メモを追加しました');
         return;
       }
@@ -104,7 +105,8 @@ program
       if (memo) {
         const project = await configManager.getProject(options.project);
         const writer = new MemoWriter(project.path);
-        await writer.addMemo(memo);
+        const formattedMemo = formatMemo(memo);
+        await writer.addMemo(formattedMemo);
         logger.success('メモを追加しました');
         return;
       }
@@ -143,7 +145,7 @@ listCommand
       }
       
       memos.forEach(memo => {
-        console.log(`[${memo.timestamp}] ${memo.content}`);
+        console.log(`${memo.timestamp} ${memo.content}`);
       });
     } catch (error) {
       logger.error(`エラーが発生しました: ${error}`);
@@ -177,7 +179,7 @@ searchCommand
       }
       
       memos.forEach(memo => {
-        console.log(`[${memo.timestamp}] ${memo.content}`);
+        console.log(`${memo.timestamp} ${memo.content}`);
       });
     } catch (error) {
       logger.error(`エラーが発生しました: ${error}`);
@@ -241,7 +243,6 @@ program
   .description('対話式でメモを追加 (deprecated: jinfoのデフォルト動作になりました)')
   .action(async () => {
     try {
-      logger.warning('`jinfo interactive` は非推奨です。代わりに `jinfo` を引数なしで実行してください。');
       await runInteractiveMode();
     } catch (error) {
       logger.error(`エラーが発生しました: ${error}`);
